@@ -1,3 +1,3 @@
-module Ipaddress
-  VERSION = "0.8.3"
+module IPAddress
+  VERSION = "0.14.0"
 end

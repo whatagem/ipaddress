@@ -135,6 +135,11 @@ class IPv4Test < Minitest::Test
     assert_raises(ArgumentError) { @klass.new }
   end
 
+  def test_method_as_json
+    ip = @klass.new("172.16.100.4/22")
+    assert_equal "172.16.100.4/22", ip.as_json
+  end
+
   def test_method_data
     if RUBY_VERSION < "2.0"
       assert_equal "\254\020\n\001", @ip.data
@@ -258,6 +263,36 @@ class IPv4Test < Minitest::Test
     assert_equal expected, arr
   end
 
+  def test_method_succ
+    ip = @klass.new("192.168.100.0/24")
+    assert_instance_of @klass, ip.succ
+    assert_equal  "192.168.100.1/24", ip.succ.to_string
+    ip = @klass.new("192.168.100.50/24")
+    assert_instance_of @klass, ip.succ
+    assert_equal  "192.168.100.51/24", ip.succ.to_string
+    ip = @klass.new("0.0.0.0/32")
+    assert_instance_of @klass, ip.succ
+    assert_equal  "0.0.0.1/32", ip.succ.to_string
+    ip = @klass.new("255.255.255.255/32")
+    assert_instance_of @klass, ip.succ
+    assert_equal  "0.0.0.0/32", ip.succ.to_string
+  end
+
+  def test_method_pred
+    ip = @klass.new("192.168.100.0/24")
+    assert_instance_of @klass, ip.pred
+    assert_equal  "192.168.99.255/24", ip.pred.to_string
+    ip = @klass.new("192.168.100.50/24")
+    assert_instance_of @klass, ip.pred
+    assert_equal  "192.168.100.49/24", ip.pred.to_string
+    ip = @klass.new("0.0.0.0/32")
+    assert_instance_of @klass, ip.pred
+    assert_equal  "255.255.255.255/32", ip.pred.to_string
+    ip = @klass.new("255.255.255.255/32")
+    assert_instance_of @klass, ip.pred
+    assert_equal  "255.255.255.254/32", ip.pred.to_string
+  end
+
   def test_method_size
     ip = @klass.new("10.0.0.1/29")
     assert_equal 8, ip.size
@@ -292,7 +327,10 @@ class IPv4Test < Minitest::Test
     assert_equal false, ip.include?(@klass.new("5.5.5.5/32"))
     assert_equal false, ip.include?(@klass.new("11.0.0.0/8"))
     ip = @klass.new("13.13.0.0/13")
-    assert_equal false, ip.include?(@klass.new("13.16.0.0/32"))    
+    assert_equal false, ip.include?(@klass.new("13.16.0.0/32"))
+    ip = @klass.new("10.10.10.0/24")
+    assert_equal true, ip.include?("10.10.10.100")
+    assert_equal false, ip.include?("10.10.9.100")
   end
 
   def test_method_include_all?
@@ -301,6 +339,8 @@ class IPv4Test < Minitest::Test
     addr2 = @klass.new("192.168.10.103/24")    
     assert_equal true, ip.include_all?(addr1,addr2)
     assert_equal false, ip.include_all?(addr1, @klass.new("13.16.0.0/32"))
+    assert_equal true, ip.include_all?("192.168.10.102/24", "192.168.10.103/24")
+    assert_equal false, ip.include_all?(addr1, "13.16.0.0/32")
   end
 
   def test_method_ipv4?
@@ -402,8 +442,8 @@ class IPv4Test < Minitest::Test
     ip1 = @klass.new('127.0.0.1')
     ip2 = IPAddress::IPv6.new('::1')
     not_ip = String
-    assert_equal nil, ip1 <=> ip2
-    assert_equal nil, ip1 <=> not_ip
+    assert_nil ip1 <=> ip2
+    assert_nil ip1 <=> not_ip
   end
 
   def test_method_minus
@@ -420,7 +460,7 @@ class IPv4Test < Minitest::Test
 
     ip2 = @klass.new("172.16.12.2/24")
     assert_equal [ip1.network.to_string, ip2.network.to_string], 
-    (ip1 + ip2).map{|i| i.to_string}
+                 (ip1 + ip2).map{|i| i.to_string}
 
     ip1 = @klass.new("10.0.0.0/23")
     ip2 = @klass.new("10.0.2.0/24")
@@ -498,6 +538,57 @@ class IPv4Test < Minitest::Test
     assert_equal "172.16.8.0/22", @ip.supernet(22).to_string
   end
 
+  def test_method_add
+    ip = IPAddress::IPv4.new("172.16.10.1/24")
+    assert_equal ip.add(5), IPAddress::IPv4.new("172.16.10.6/24")
+    assert_equal ip.add(IPAddress::IPv4.new("0.0.0.5/6")), IPAddress::IPv4.new("172.16.10.6/24")
+    assert_equal ip.add(50), IPAddress::IPv4.new("172.16.10.51/24")
+    assert_equal ip.add(254), IPAddress::IPv4.new("172.16.10.255/24")
+    assert_raises(RuntimeError) {ip.add(255)}
+    assert_equal ip.add(255, false), IPAddress::IPv4.new("172.16.11.0/24")
+    assert_raises(RuntimeError) {ip.add(1000)}
+    ip = IPAddress::IPv4.new("172.16.10.1/30")
+    assert_equal ip.add(2), IPAddress::IPv4.new("172.16.10.3/30")
+    assert_raises(RuntimeError) {ip.add(3)}
+  end
+
+  def test_method_subtract
+    ip = IPAddress::IPv4.new("172.16.10.10/24")
+    assert_equal ip.subtract(5), IPAddress::IPv4.new("172.16.10.5/24")
+    assert_equal ip.subtract(IPAddress::IPv4.new("0.0.0.5/32")), IPAddress::IPv4.new("172.16.10.5/24")
+    assert_equal ip.subtract(10), IPAddress::IPv4.new("172.16.10.0/24")
+    assert_raises(RuntimeError) {ip.subtract(11)}
+    assert_equal ip.subtract(11, false), IPAddress::IPv4.new("172.16.9.255/24")
+    assert_raises(RuntimeError) {ip.subtract(IPAddress::IPv4.new("0.0.0.11/16"))}
+  end
+  
+  def test_method_hostpart
+    ip = IPAddress::IPv4.new("172.16.10.64/24")
+    assert_equal ip.hostpart.to_s, "0.0.0.64"
+    ip = IPAddress::IPv4.new("172.16.10.130/25")
+    assert_equal ip.hostpart.to_s, "0.0.0.2"
+  end
+  
+  def test_method_advance_network
+    ip = IPAddress::IPv4.new("172.16.10.64/24")
+    assert_equal ip.advance_network(42), IPAddress::IPv4.new("172.16.52.0/24")
+  end
+
+  def test_method_next_network
+    ip = IPAddress::IPv4.new("172.16.10.64/24")
+    assert_equal ip.next_network, IPAddress::IPv4.new("172.16.11.0/24")
+  end
+  
+  def test_method_regress_network
+    ip = IPAddress::IPv4.new("172.16.10.64/24")
+    assert_equal ip.regress_network(5), IPAddress::IPv4.new("172.16.5.0/24")
+  end
+  
+  def test_method_previous_network
+    ip = IPAddress::IPv4.new("172.16.10.64/24")
+    assert_equal ip.previous_network, IPAddress::IPv4.new("172.16.9.0/24")
+  end  
+  
   def test_classmethod_parse_u32
     @decimal_values.each do  |addr,int|
       ip = @klass.parse_u32(int)
@@ -651,6 +742,17 @@ class IPv4Test < Minitest::Test
     end
   end
 
-end # class IPv4Test
+  def test_finds_adjacent_subnet
+    ip = @klass.new("10.0.0.0/24")
+    assert_equal "10.0.1.0/24", ip.find_adjacent_subnet
+    assert_equal 24, ip.prefix
+    refute @klass.new("10.0.0.0/0").find_adjacent_subnet 
+    assert_equal "10.0.0.0/8", @klass.new("11.0.0.0/8").find_adjacent_subnet 
+    assert_equal "172.16.0.0/16", @klass.new("172.17.0.0/16").find_adjacent_subnet 
+    assert_equal "192.168.4.0/24", @klass.new("192.168.5.0/24").find_adjacent_subnet 
+    assert_equal "192.168.100.4/30", @klass.new("192.168.100.0/30").find_adjacent_subnet 
+    assert_equal "192.168.1.2/31", @klass.new("192.168.1.0/31").find_adjacent_subnet 
+    assert_equal "192.168.2.5/32", @klass.new("192.168.2.4/32").find_adjacent_subnet 
+  end
 
-  
+end # class IPv4Test

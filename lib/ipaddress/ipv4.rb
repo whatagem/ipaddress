@@ -107,6 +107,18 @@ module IPAddress;
     end
 
     #
+    # When serializing to JSON format, just use the string representation
+    #
+    #   ip = IPAddress("172.16.100.4/22")
+    #
+    #   ip.as_json
+    #     #=> "172.16.100.4/22"
+    #
+    def as_json
+      to_string
+    end
+
+    #
     # Returns the prefix portion of the IPv4 object
     # as a IPAddress::Prefix32 object
     #
@@ -365,6 +377,18 @@ module IPAddress;
     def network
       self.class.parse_u32(network_u32, @prefix)
     end
+    
+    #
+    # Returns a new IPv4 object containing only the host part of this IP.
+    #
+    #   ip = IPAddress("172.16.10.64/24")
+    #
+    #   ip.hostpart.to_s
+    #     #=> "0.0.0.64"
+    #
+    def hostpart
+      self.class.parse_u32(hostpart_u32, 32)
+    end
 
     #
     # Returns a new IPv4 object with the
@@ -479,6 +503,35 @@ module IPAddress;
     end
 
     #
+    # Returns the successor to the IP address
+    #
+    # Example:
+    #
+    #   ip = IPAddress("192.168.45.23/16")
+    #
+    #   ip.succ.to_string
+    #     => "192.168.45.24/16"
+    #
+    def succ
+      self.class.new("#{IPAddress.ntoa(to_u32.succ % 0x100000000)}/#{prefix}")
+    end
+    alias_method :next, :succ
+
+    #
+    # Returns the predecessor to the IP address
+    #
+    # Example:
+    #
+    #   ip = IPAddress("192.168.45.23/16")
+    #
+    #   ip.pred.to_string
+    #     => "192.168.45.22/16"
+    #
+    def pred
+      self.class.new("#{IPAddress.ntoa(to_u32.pred % 0x100000000)}/#{prefix}")
+    end
+
+    #
     # Spaceship operator to compare IPv4 objects
     #
     # Comparing IPv4 addresses is useful to ordinate
@@ -559,6 +612,18 @@ module IPAddress;
     def network_u32
       @u32 & @prefix.to_u32
     end
+    
+    #
+    # Returns this address' host part in unsigned 32bits format
+    #
+    #   ip = IPAddress("10.0.0.42/24")
+    #
+    #   ip.host_u32
+    #     #=> 42
+    #
+    def hostpart_u32
+      @u32 & ~@prefix.to_u32
+    end
 
     #
     # Returns the broadcast address in Unsigned 32bits format
@@ -575,7 +640,7 @@ module IPAddress;
     #
     # Checks whether a subnet includes the given IP address.
     #
-    # Accepts an IPAddress::IPv4 object.
+    # Accepts an IPAddress::IPv4 object or a string.
     #
     #   ip = IPAddress("192.168.10.100/24")
     #
@@ -587,13 +652,19 @@ module IPAddress;
     #   ip.include? IPAddress("172.16.0.48/16")
     #     #=> false
     #
+    #   ip.include? "192.168.10.50"
+    #     #=> true
+    #
     def include?(oth)
+      unless oth.is_a? IPAddress::IPv4
+        oth = IPv4.new(oth)
+      end
       @prefix <= oth.prefix and network_u32 == (oth.to_u32 & @prefix.to_u32)
     end
 
     #
     # Checks whether a subnet includes all the 
-    # given IPv4 objects.
+    # given IPv4 objects or strings.
     #
     #   ip = IPAddress("192.168.10.100/24")
     #
@@ -601,6 +672,9 @@ module IPAddress;
     #   addr2 = IPAddress("192.168.10.103/24")
     #
     #   ip.include_all?(addr1,addr2)
+    #     #=> true
+    #
+    #   ip.include_all?("192.168.10.102/24", "192.168.10.103/24")
     #     #=> true
     #
     def include_all?(*others)
@@ -844,6 +918,97 @@ module IPAddress;
     #
     def +(oth)
       aggregate(*[self,oth].sort.map{|i| i.network})
+    end
+    
+    #
+    # Returns a new IPv4 object which is the result 
+    # of advancing this IP address by a given value.
+    # In other words, this arithmetically adds IP addresses.
+    #
+    # Will raise an error if the resulting address is in a different subnet,
+    # except validating is set to false.
+    #
+    # Example:
+    #
+    #   ip = IPAddress::IPv4.new("172.16.10.1/24")
+    #   ip.add(5).to_string
+    #     #=> "172.16.10.6/24"
+    def add(oth, validating=true)
+      oth = oth.to_i if oth.kind_of? IPAddress::IPv4 # oth shall be integer
+      
+      new_obj = self.class.parse_u32(self.to_i + oth, prefix)
+      
+      if validating and self.network_u32 != new_obj.network_u32
+        raise RuntimeError, "Subnet (/#{@prefix}) is not large enough."
+      end
+      
+      new_obj
+    end
+    
+    #
+    # Returns a new IPv4 object which is the result 
+    # of decreasing this IP address by a given value.
+    # In other words, this arithmetically subtracts IP addresses.
+    #
+    # Will raise an error if the resulting address is in a different subnet,
+    # except validating is set to false.
+    #
+    # Example:
+    #
+    #   ip = IPAddress::IPv4.new("172.16.10.10/24")
+    #   ip.subtract(5).to_string
+    #     #=> "172.16.10.5/24"
+    def subtract(oth, validating=true)
+      oth = oth.to_i if oth.kind_of? IPAddress::IPv4 # oth shall be integer
+      add(-oth, validating)
+    end
+    
+    #
+    # Returns the network address of the n-th network succeeding this one.
+    #
+    # Example:
+    #
+    #   ip = IPAddress::IPv4.new("172.16.10.0/24")
+    #   ip.advance_network(24).to_string
+    #     #=> "172.16.52.0/24"
+    def advance_network(amount)
+      IPAddress::IPv4.parse_u32(self.network.u32 + amount*self.size, @prefix)
+    end
+    
+    #
+    # Returns the network address of the network succeeding this one.
+    #
+    # Example:
+    #
+    #   ip = IPAddress::IPv4.new("172.16.10.0/24")
+    #   ip.next_network.to_string
+    #     #=> "172.16.11.0/24"
+    def next_network
+      advance_network 1
+    end
+    
+    #
+    # Returns the network address of the n-th network preceeding this one.
+    #
+    # Example:
+    #
+    #   ip = IPAddress::IPv4.new("172.16.10.0/24")
+    #   ip.regress_network(5).to_string
+    #     #=> "172.16.5.0/24"
+    def regress_network(amount)
+      advance_network(-amount)
+    end
+    
+    #
+    # Returns the network address of the network preceeding this one.
+    #
+    # Example:
+    #
+    #   ip = IPAddress::IPv4.new("172.16.10.0/24")
+    #   ip.previous_network.to_string
+    #     #=> "172.16.9.0/24"
+    def previous_network
+      regress_network 1
     end
 
     #
@@ -1108,6 +1273,24 @@ module IPAddress;
             raise StopIteration
         end
         self.class.parse_u32(network_u32+@allocator, @prefix)
+    end
+
+    #
+    # Finds the adjacent block to a subnet.
+    #
+    # Example:
+    #
+    #    ip = IPAddress("10.0.0.0/24")
+    #    ip.find_adjacent_subnet
+    #      #=> "10.0.1.0/24"
+    #
+    def find_adjacent_subnet
+      return false if prefix == 0
+      current_subnet = to_string
+      self.prefix = @prefix - 1
+      adjacent_subnet = (split.map{|i| i.to_string} - [current_subnet])[0]
+      self.prefix = @prefix + 1
+      return adjacent_subnet
     end
 
     #
