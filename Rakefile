@@ -38,14 +38,14 @@ Rake::RDocTask.new do |rdoc|
   end
 
   rdoc.rdoc_dir = 'rdoc'
-  rdoc.title = "ipaddress #{version}"
+  rdoc.title = "ipaddress3 #{version}"
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
 
 desc "Open an irb session preloaded with this library"
 task :console do
-  sh "irb -I lib -r ipaddress.rb"
+  sh "irb -I lib -r ipaddress3.rb"
 end
 
 desc "Look for TODO and FIXME tags in the code"

@@ -1,11 +1,11 @@
-= IPAddress
+= IPAddress3
 
-IPAddress is a Ruby library designed to make the use of IPv4 and IPv6
+IPAddress3 is a Ruby library designed to make the use of IPv4 and IPv6
 addresses simple, powerful and enjoyable. It provides a complete set of
 methods to handle IP addresses for any need, from simple scripting to
 full network design.
 
-IPAddress is written with a full OO interface, and its code is easy to
+IPAddress3 is written with a full OO interface, and its code is easy to
 read, maintain and extend. The documentation is full of examples, to
 let you start being productive immediately.
 
@@ -16,10 +16,6 @@ examples of typical usage.
 
 * Ruby 1.9.3 or later
 
-Please refer to {Travis CI}[https://travis-ci.org/whatagem/ipaddress] for Build Tests on specific versions of Ruby.
-
-{<img src="https://travis-ci.org/whatagem/ipaddress.svg?branch=master" alt="Build Status" />}[https://travis-ci.org/whatagem/ipaddress] {<img src="https://codeclimate.com/github/whatagem/ipaddress/badges/gpa.svg" />}[https://codeclimate.com/github/whatagem/ipaddress]
-
 If you want to contribute, please refer to {Contributing.md}[https://github.com/whatagem/ipaddress/blob/master/CONTRIBUTING.md].
 
 
@@ -27,21 +23,19 @@ If you want to contribute, please refer to {Contributing.md}[https://github.com/
 
 Install the library using rubygems
 
-  $ gem install ipaddress
+  $ gem install ipaddress3
 
 You can then use it in your programs:
   
-  require 'ipaddress'
+  require 'ipaddress3'
 
 == Documentation
 
 The code is fully documented with RDoc. You can generate the
 documentation with Rake:
 
-  ipaddress$ rake rdoc
+  ipaddress3$ rake rdoc
 
-The latest documentation can be found online at 
-{this address}[http://www.rubydoc.info/gems/ipaddress/0.9.0]
  
 == IPv4
 

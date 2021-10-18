@@ -12,14 +12,14 @@
 #
 #++
 
-require 'ipaddress/ipv4'
-require 'ipaddress/ipv6'
-require 'ipaddress/mongoid' if defined?(Mongoid)
+require 'ipaddress3/ipv4'
+require 'ipaddress3/ipv6'
+require 'ipaddress3/mongoid' if defined?(Mongoid)
 
 module IPAddress
 
   NAME            = "IPAddress"
-  GEM             = "ipaddress"
+  GEM             = "ipaddress3"
   AUTHORS         = ["Marco Ceresa <ceresa@ieee.org>"]
 
   #
@@ -44,7 +44,9 @@ module IPAddress
   def IPAddress::parse(str)
 
     # Check if an int was passed
-    if str.kind_of? Integer
+    if (str.kind_of? Integer) && str > 0xffffffff
+      return IPAddress::IPv6.new(ntoa6(str))
+    elsif str.kind_of? Integer
       return IPAddress::IPv4.new(ntoa(str))
     end
 
@@ -76,6 +78,16 @@ module IPAddress
       uint >>= 8
     end
     ret.join('.')
+  end
+
+  #
+  # Converts a unit32 to IPv6
+  #
+  def self.ntoa6(uint)
+    unless(uint.is_a? Numeric and uint <= 0xffffffffffffffffffffffffffffffff and uint > 0xffffffff)
+      raise(::ArgumentError, "not a BigNum: #{uint.inspect}")
+    end
+    uint.to_s(16).scan(/.{4}/).join(':')
   end
 
   #

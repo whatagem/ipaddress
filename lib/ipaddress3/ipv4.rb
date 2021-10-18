@@ -1,4 +1,4 @@
-require 'ipaddress/prefix'
+require 'ipaddress3/prefix'
 
 module IPAddress; 
   # 
@@ -8,7 +8,7 @@ module IPAddress;
   #
   # =Synopsis
   #
-  #    require 'ipaddress'
+  #    require 'ipaddress3'
   #
   # =Description
   # 

@@ -16,9 +16,17 @@ class IPAddressTest < Minitest::Test
                           3232235520, # 192.168.0.0
                           0]
 
+    @valid_ipv6_uint32 = [42540766411282592856906245548098208122, # 2001:0db8:0000:0000:0008:0800:200c:417a
+                          42545680458834377588178886921629466625,  # 2002:0000:0000:0000:0000:0000:0000:0001
+                          ]
+
     @invalid_ipv4_uint32 = [4294967296, # 256.0.0.0
                           "A294967295", # Invalid uINT
                           -1]           # Invalid
+
+    @invalid_ipv6_uint32 = [21267647932558653966460912964485513215, # ffff:ffff:ffff:ffff:ffff:ffff:ffff
+                          340282366920938463463374607431768211456, # 1000:0000:0000:0000:0000:0000:0000:0000" overflowed
+                          ]    
 
 
     @ipv4class   = IPAddress::IPv4
@@ -57,6 +65,12 @@ class IPAddressTest < Minitest::Test
     assert_raises(ArgumentError) {@method.call(@invalid_ipv4_uint32[0])}
     assert_raises(ArgumentError) {@method.call(@invalid_ipv4_uint32[1])}
     assert_raises(ArgumentError) {@method.call(@invalid_ipv4_uint32[2])}
+
+    assert_instance_of @ipv6class, @method.call(@valid_ipv6_uint32[0])
+    assert_instance_of @ipv6class, @method.call(@valid_ipv6_uint32[1])
+
+    assert_raises(ArgumentError) {@method.call(@invalid_ipv6_uint32[0])}
+    assert_raises(ArgumentError) {@method.call(@invalid_ipv6_uint32[1])}
 
   end
 
